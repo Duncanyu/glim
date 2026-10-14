@@ -14,6 +14,8 @@ open "dist/Color Editor.app"
 
 The app starts in the menu bar. Settings can switch it to a Dock app and hide the menu bar item, or switch back. Closing the editor window leaves adjustments running; quitting restores the display curves that were in place when the app started. Reset controls are always available in the editor.
 
+Press **Control–Option–Command–C** from any app to pause or resume adjustments. The shortcut can be turned off in Settings. Sliders support arrow-key steps, editable numeric values, and individual resets.
+
 ## What the display backend can do
 
 The editor writes each display's public Core Graphics RGB gamma table. It saves the existing table, applies changes only when a control changes, and restores the saved table when adjustments are paused or the app quits. It uses no overlay, screen capture, polling, third-party library, or background renderer. A future automatic adjustment source can feed `submitAutomaticAdjustment` without changing the display backend.

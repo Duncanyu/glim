@@ -2,65 +2,35 @@ import AppKit
 import SwiftUI
 
 @main
-struct ColorEditorApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = EditorModel()
+enum ColorEditorMain {
+    @MainActor private static let delegate = AppDelegate()
 
-    var body: some Scene {
-        WindowGroup("Color Editor", id: "editor") {
-            EditorRoot(model: model, appDelegate: appDelegate)
-        }
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
-    }
-}
-
-private struct EditorRoot: View {
-    @Environment(\.openWindow) private var openWindow
-    @ObservedObject var model: EditorModel
-    let appDelegate: AppDelegate
-
-    var body: some View {
-        EditorView(model: model)
-            .frame(minWidth: 430, minHeight: 570)
-            .onAppear {
-                appDelegate.configure(model: model, reopen: { openWindow(id: "editor") })
-            }
-            .onChange(of: model.placement) { _, placement in
-                appDelegate.updatePlacement(placement)
-            }
+    @MainActor static func main() {
+        let app = NSApplication.shared
+        app.delegate = delegate
+        app.run()
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private var model: EditorModel?
-    private var reopen: (() -> Void)?
+    private let model = EditorModel()
+    private var window: NSWindow?
     private var statusItem: NSStatusItem?
-    private var menu: NSMenu?
+    private var hotkeyController: HotkeyController?
 
-    func configure(model: EditorModel, reopen: @escaping () -> Void) {
-        self.reopen = reopen
-        guard self.model == nil else { return }
-        self.model = model
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model.onEnabledChange = { [weak self] enabled in self?.updateStatusItem(enabled: enabled) }
+        model.onPlacementChange = { [weak self] placement in self?.updatePlacement(placement) }
+        model.onHotkeyPreferenceChange = { [weak self] enabled in self?.updateHotkey(enabled: enabled) }
+        hotkeyController = HotkeyController { [weak self] in self?.model.enabled.toggle() }
+
+        installAppMenu()
         NotificationCenter.default.addObserver(self, selector: #selector(displaysChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(displaysChanged), name: NSWorkspace.didWakeNotification, object: nil)
         updatePlacement(model.placement)
-    }
-
-    func updatePlacement(_ placement: AppPlacement) {
-        switch placement {
-        case .menuBar:
-            if statusItem == nil { installStatusItem() }
-            NSApp.setActivationPolicy(.accessory)
-        case .dock:
-            NSApp.setActivationPolicy(.regular)
-            if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
-            statusItem = nil
-            menu = nil
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        updateHotkey(enabled: model.hotkeyEnabled)
+        openEditor()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -71,51 +41,134 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        model?.restoreDisplays()
+        hotkeyController?.stop()
+        model.restoreDisplays()
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        menu.item(withTag: 1)?.title = model?.enabled == true ? "Pause Adjustments" : "Resume Adjustments"
+        let title = model.enabled ? "Pause Adjustments" : "Resume Adjustments"
+        menu.item(withTag: 1)?.title = model.hotkeyEnabled && model.hotkeyStatus == nil ? "\(title)  ⌃⌥⌘C" : title
     }
 
-    @objc private func displaysChanged() { model?.refreshDisplays() }
+    @objc private func displaysChanged() { model.refreshDisplays() }
 
     @objc private func openEditor() {
-        if let window = NSApp.windows.first(where: { $0.title == "Color Editor" && $0.isVisible }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            reopen?()
+        if window == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Color Editor"
+            window.contentMinSize = NSSize(width: 470, height: 560)
+            window.contentView = NSHostingView(rootView: EditorView(model: model))
+            window.isReleasedWhenClosed = false
+            window.center()
+            self.window = window
         }
+        window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func toggleAdjustments() { model?.enabled.toggle() }
-
     @objc private func openSettings() {
-        model?.showsSettings = true
+        model.showsSettings = true
         openEditor()
     }
 
+    @objc private func toggleAdjustments() { model.enabled.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }
+
+    private func updatePlacement(_ placement: AppPlacement) {
+        switch placement {
+        case .menuBar:
+            if statusItem == nil { installStatusItem() }
+            NSApp.setActivationPolicy(.accessory)
+        case .dock:
+            NSApp.setActivationPolicy(.regular)
+            if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
+            statusItem = nil
+            NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    private func updateHotkey(enabled: Bool) {
+        guard enabled else {
+            hotkeyController?.stop()
+            model.hotkeyStatus = nil
+            return
+        }
+        guard let hotkeyController else { return }
+        let status = hotkeyController.start()
+        model.hotkeyStatus = status == noErr ? nil : "Shortcut unavailable (error \(status))."
+    }
+
+    private func updateStatusItem(enabled: Bool) {
+        statusItem?.button?.image = NSImage(systemSymbolName: enabled ? "circle.lefthalf.filled" : "circle.slash", accessibilityDescription: enabled ? "Color Editor enabled" : "Color Editor paused")
+        statusItem?.button?.toolTip = enabled ? "Color Editor: adjustments on" : "Color Editor: adjustments paused"
+    }
 
     private func installStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "circle.lefthalf.filled", accessibilityDescription: "Color Editor")
-        item.button?.toolTip = "Color Editor"
-
         let menu = NSMenu()
         menu.delegate = self
-        menu.addItem(NSMenuItem(title: "Open Color Editor", action: #selector(openEditor), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        let toggle = NSMenuItem(title: "Pause Adjustments", action: #selector(toggleAdjustments), keyEquivalent: "")
+        menu.addItem(menuItem("Open Color Editor", action: #selector(openEditor)))
+        menu.addItem(menuItem("Settings…", action: #selector(openSettings)))
+        menu.addItem(.separator())
+        let toggle = menuItem("Pause Adjustments", action: #selector(toggleAdjustments))
         toggle.tag = 1
         menu.addItem(toggle)
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit Color Editor", action: #selector(quit), keyEquivalent: ""))
-        for entry in menu.items { entry.target = self }
+        menu.addItem(.separator())
+        menu.addItem(menuItem("Quit Color Editor", action: #selector(quit)))
         item.menu = menu
-        self.statusItem = item
-        self.menu = menu
+        statusItem = item
+        updateStatusItem(enabled: model.enabled)
+    }
+
+    private func installAppMenu() {
+        let mainMenu = NSMenu()
+        let appItem = NSMenuItem(title: "Color Editor", action: nil, keyEquivalent: "")
+        let appMenu = NSMenu()
+        appMenu.delegate = self
+        appItem.submenu = appMenu
+        mainMenu.addItem(appItem)
+
+        let settings = menuItem("Settings…", action: #selector(openSettings))
+        settings.keyEquivalent = ","
+        settings.keyEquivalentModifierMask = [.command]
+        appMenu.addItem(settings)
+        appMenu.addItem(.separator())
+        let toggle = menuItem("Pause Adjustments", action: #selector(toggleAdjustments))
+        toggle.tag = 1
+        appMenu.addItem(toggle)
+        appMenu.addItem(.separator())
+        let quit = menuItem("Quit Color Editor", action: #selector(quit))
+        quit.keyEquivalent = "q"
+        quit.keyEquivalentModifierMask = [.command]
+        appMenu.addItem(quit)
+
+        let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        mainMenu.addItem(editItem)
+        for (title, selector, key, modifiers) in [
+            ("Undo", "undo:", "z", NSEvent.ModifierFlags.command),
+            ("Redo", "redo:", "z", [.command, .shift]),
+            ("Cut", "cut:", "x", .command),
+            ("Copy", "copy:", "c", .command),
+            ("Paste", "paste:", "v", .command),
+            ("Select All", "selectAll:", "a", .command)
+        ] {
+            let item = NSMenuItem(title: title, action: Selector(selector), keyEquivalent: key)
+            item.keyEquivalentModifierMask = modifiers
+            editMenu.addItem(item)
+        }
+        NSApp.mainMenu = mainMenu
+    }
+
+    private func menuItem(_ title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
     }
 }

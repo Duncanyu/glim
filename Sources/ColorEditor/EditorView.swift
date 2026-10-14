@@ -7,7 +7,7 @@ struct EditorView: View {
     @ObservedObject var model: EditorModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             header
             displayPicker
 
@@ -21,7 +21,7 @@ struct EditorView: View {
             }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 16) {
                     if model.showsSettings {
                         settingsControls
                     } else if !model.displays.isEmpty {
@@ -35,11 +35,12 @@ struct EditorView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollIndicators(.visible)
 
             footer
         }
-        .padding(18)
-        .frame(minWidth: 390, idealWidth: 440, minHeight: 500, idealHeight: 620)
+        .padding(20)
+        .frame(minWidth: 470, idealWidth: 520, minHeight: 560, idealHeight: 680)
     }
 
     private var header: some View {
@@ -50,9 +51,9 @@ struct EditorView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Color controls")
+                Text(model.showsSettings ? "Settings" : "Color controls")
                     .font(.headline)
-                Text("Adjust the selected display")
+                Text(model.showsSettings ? "Preferences and display tools" : "Adjust the selected display")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -62,14 +63,15 @@ struct EditorView: View {
             Button {
                 model.showsSettings.toggle()
             } label: {
-                Image(systemName: model.showsSettings ? "slider.horizontal.3" : "gearshape")
+                Label(model.showsSettings ? "Controls" : "Settings",
+                      systemImage: model.showsSettings ? "slider.horizontal.3" : "gearshape")
             }
             .help(model.showsSettings ? "Back to controls" : "Settings")
-            .accessibilityLabel(model.showsSettings ? "Back to controls" : "Settings")
 
-            Toggle("Adjustments enabled", isOn: $model.enabled)
-                .labelsHidden()
+            Toggle("On", isOn: $model.enabled)
                 .toggleStyle(.switch)
+                .accessibilityLabel("Adjustments enabled")
+                .help(model.enabled ? "Pause display adjustments" : "Resume display adjustments")
         }
     }
 
@@ -111,80 +113,126 @@ struct EditorView: View {
 
     private var presets: some View {
         GroupBox("Quick looks") {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(Preset.allCases) { preset in
                     Button(preset.rawValue) { apply(preset) }
                         .frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
         }
     }
 
     private var toneControls: some View {
-        GroupBox("Tone") {
-            VStack(spacing: 9) {
-                slider("Dimming", value: $model.settings.brightness, range: 0.1...1)
-                slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5)
+        GroupBox("Light and tone") {
+            VStack(spacing: 12) {
+                slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1,
+                       hint: "Apparent brightness. Does not change the display backlight.")
+                slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
                 if model.interfaceMode == .professional {
-                    slider("Gamma", value: $model.settings.gamma, range: 0.5...2)
-                }
-                slider("Warmth", value: $model.settings.warmth, range: -1...1)
-                if model.interfaceMode == .professional {
-                    slider("Tint balance", value: $model.settings.tint, range: -1...1)
+                    slider("Gamma", value: $model.settings.gamma, range: 0.5...2, neutral: 1,
+                           scale: 1, unit: "×")
                 }
             }
         }
     }
 
     private var tintControls: some View {
-        GroupBox("Color tint") {
-            VStack(spacing: 9) {
-                ColorPicker("Tint color", selection: tintColor, supportsOpacity: false)
-                slider("Strength", value: $model.settings.tintStrength, range: 0...1)
+        GroupBox("Color") {
+            VStack(alignment: .leading, spacing: 12) {
+                slider("Warmth", value: $model.settings.warmth, range: -1...1, neutral: 0,
+                       lowLabel: "Cooler", highLabel: "Warmer")
+                if model.interfaceMode == .professional {
+                    slider("Green–magenta balance", value: $model.settings.tint,
+                           range: -1...1, neutral: 0, lowLabel: "Green", highLabel: "Magenta")
+                }
+
+                Divider()
+                Text("Tint color")
+                    .font(.subheadline.weight(.medium))
+                HStack(spacing: 8) {
+                    ForEach(quickTints.indices, id: \.self) { index in
+                        let choice = quickTints[index]
+                        Button {
+                            tintColor.wrappedValue = choice.color
+                        } label: {
+                            HStack(spacing: 6) {
+                                Circle().fill(choice.color)
+                                    .frame(width: 14, height: 14)
+                                    .overlay(Circle().strokeBorder(.secondary, lineWidth: 0.5))
+                                    .accessibilityHidden(true)
+                                Text(choice.name)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .accessibilityLabel("Set \(choice.name) tint")
+                    }
+                }
+                .buttonStyle(.bordered)
+
+                ColorPicker("Custom tint color", selection: tintColor, supportsOpacity: false)
+                    .accessibilityHint("Choosing a color sets tint strength to 50 percent if it is off.")
+                slider("Tint strength", value: $model.settings.tintStrength, range: 0...1, neutral: 0)
             }
         }
     }
 
     private var channelControls: some View {
         GroupBox("RGB channels") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Gain · highlights")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                slider("Red", value: $model.settings.redGain, range: 0.1...1.5)
-                slider("Green", value: $model.settings.greenGain, range: 0.1...1.5)
-                slider("Blue", value: $model.settings.blueGain, range: 0.1...1.5)
+            VStack(alignment: .leading, spacing: 12) {
+                channelHeading("Highlights", detail: "Gain")
+                slider("Red", value: $model.settings.redGain, range: 0.1...1.5,
+                       neutral: 1, accessibleName: "Red highlight gain")
+                slider("Green", value: $model.settings.greenGain, range: 0.1...1.5,
+                       neutral: 1, accessibleName: "Green highlight gain")
+                slider("Blue", value: $model.settings.blueGain, range: 0.1...1.5,
+                       neutral: 1, accessibleName: "Blue highlight gain")
 
                 Divider()
-                Text("Gamma · midtones")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                slider("Red", value: $model.settings.redGamma, range: 0.5...2)
-                slider("Green", value: $model.settings.greenGamma, range: 0.5...2)
-                slider("Blue", value: $model.settings.blueGamma, range: 0.5...2)
+                channelHeading("Midtones", detail: "Gamma")
+                slider("Red", value: $model.settings.redGamma, range: 0.5...2,
+                       neutral: 1, scale: 1, unit: "×", accessibleName: "Red midtone gamma")
+                slider("Green", value: $model.settings.greenGamma, range: 0.5...2,
+                       neutral: 1, scale: 1, unit: "×", accessibleName: "Green midtone gamma")
+                slider("Blue", value: $model.settings.blueGamma, range: 0.5...2,
+                       neutral: 1, scale: 1, unit: "×", accessibleName: "Blue midtone gamma")
 
                 Divider()
-                Text("Lift · shadows")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                slider("Red", value: $model.settings.redLift, range: -0.2...0.2)
-                slider("Green", value: $model.settings.greenLift, range: -0.2...0.2)
-                slider("Blue", value: $model.settings.blueLift, range: -0.2...0.2)
+                channelHeading("Shadows", detail: "Lift")
+                slider("Red", value: $model.settings.redLift, range: -0.2...0.2,
+                       neutral: 0, accessibleName: "Red shadow lift")
+                slider("Green", value: $model.settings.greenLift, range: -0.2...0.2,
+                       neutral: 0, accessibleName: "Green shadow lift")
+                slider("Blue", value: $model.settings.blueLift, range: -0.2...0.2,
+                       neutral: 0, accessibleName: "Blue shadow lift")
             }
         }
     }
 
     private var settingsControls: some View {
-        GroupBox("Settings") {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
+            GroupBox("App location") {
                 Picker("Show in", selection: $model.placement) {
                     Text("Dock").tag(AppPlacement.dock)
                     Text("Menu bar").tag(AppPlacement.menuBar)
                 }
                 .pickerStyle(.segmented)
+            }
 
+            GroupBox("Keyboard shortcut") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Toggle adjustments with ⌃⌥⌘C", isOn: $model.hotkeyEnabled)
+                        .accessibilityLabel("Enable Control Option Command C to toggle adjustments")
+                    if let status = model.hotkeyStatus {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+
+            GroupBox("Displays") {
                 HStack {
                     Button("Refresh displays") { model.refreshDisplays() }
                     Spacer()
@@ -196,18 +244,33 @@ struct EditorView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            if !model.showsSettings {
                 Button("Reset this display") { model.resetSelected() }
                     .disabled(model.displays.isEmpty)
-                Spacer()
-                Text(model.showsSettings ? "Settings" : model.interfaceMode == .beginner ? "Simple controls" : "Per-channel controls")
-                    .foregroundStyle(.secondary)
             }
             Text("Brightness is an apparent adjustment, not the backlight. Display LUT support varies by Mac and display.")
                 .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(.secondary)
         }
         .font(.caption)
+    }
+
+    private var quickTints: [(name: String, color: Color)] {
+        [
+            ("Amber", Color(red: 1, green: 0.82, blue: 0.56)),
+            ("Rose", Color(red: 1, green: 0.63, blue: 0.72)),
+            ("Mint", Color(red: 0.66, green: 1, blue: 0.78)),
+            ("Blue", Color(red: 0.65, green: 0.82, blue: 1))
+        ]
+    }
+
+    private func channelHeading(_ title: String, detail: String) -> some View {
+        HStack {
+            Text(title).font(.subheadline.weight(.semibold))
+            Spacer()
+            Text(detail).font(.caption).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var tintColor: Binding<Color> {
@@ -229,22 +292,71 @@ struct EditorView: View {
         )
     }
 
-    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+    private func slider(
+        _ title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        neutral: Double,
+        scale: Double = 100,
+        unit: String = "%",
+        accessibleName: String? = nil,
+        hint: String? = nil,
+        lowLabel: String? = nil,
+        highLabel: String? = nil
+    ) -> some View {
+        let name = accessibleName ?? title
         let clamped = Binding(
             get: { value.wrappedValue },
             set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
         )
-        return HStack(spacing: 8) {
+        let displayed = Binding(
+            get: { clamped.wrappedValue * scale },
+            set: { clamped.wrappedValue = $0 / scale }
+        )
+        return VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .frame(width: 88, alignment: .leading)
-            Slider(value: clamped, in: range)
-                .accessibilityLabel(title)
-            TextField(title, value: clamped, format: .number.precision(.fractionLength(2)))
-                .textFieldStyle(.roundedBorder)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 54)
-                .accessibilityLabel("\(title) value")
+                .font(.subheadline.weight(.medium))
+            HStack(spacing: 8) {
+                Slider(value: clamped, in: range, step: 0.01)
+                    .controlSize(.large)
+                    .accessibilityLabel(name)
+                    .accessibilityValue("\(displayed.wrappedValue.formatted(.number.precision(.fractionLength(scale == 1 ? 2 : 0)))) \(unit)")
+                    .accessibilityHint(hint ?? "Use arrow keys for fine adjustments.")
+
+                TextField(title, value: displayed,
+                          format: .number.precision(.fractionLength(scale == 1 ? 2 : 0)))
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 64)
+                    .accessibilityLabel("\(name) value in \(unit == "%" ? "percent" : "multiples")")
+                Text(unit)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, alignment: .leading)
+                    .accessibilityHidden(true)
+
+                Button {
+                    clamped.wrappedValue = neutral
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(abs(clamped.wrappedValue - neutral) < 0.0001)
+                .help("Reset \(name)")
+                .accessibilityLabel("Reset \(name)")
+            }
+            if let lowLabel, let highLabel {
+                HStack {
+                    Text(lowLabel)
+                    Spacer()
+                    Text(highLabel)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.trailing, 112)
+                .accessibilityHidden(true)
+            }
         }
+        .padding(.vertical, 2)
     }
 
     private func apply(_ preset: Preset) {

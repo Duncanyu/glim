@@ -12,16 +12,31 @@ final class EditorModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(enabled, forKey: "adjustmentsEnabled")
             applyAll()
+            onEnabledChange?(enabled)
+        }
+    }
+    @Published var hotkeyEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(hotkeyEnabled, forKey: "hotkeyEnabled")
+            onHotkeyPreferenceChange?(hotkeyEnabled)
         }
     }
     @Published var interfaceMode: InterfaceMode {
         didSet { UserDefaults.standard.set(interfaceMode.rawValue, forKey: "interfaceMode") }
     }
     @Published var placement: AppPlacement {
-        didSet { UserDefaults.standard.set(placement.rawValue, forKey: "appPlacement") }
+        didSet {
+            UserDefaults.standard.set(placement.rawValue, forKey: "appPlacement")
+            onPlacementChange?(placement)
+        }
     }
     @Published var errorMessage: String?
+    @Published var hotkeyStatus: String?
     @Published var showsSettings = false
+
+    var onEnabledChange: ((Bool) -> Void)?
+    var onPlacementChange: ((AppPlacement) -> Void)?
+    var onHotkeyPreferenceChange: ((Bool) -> Void)?
 
     private let controller = DisplayController()
     private var manualSettings: [String: DisplaySettings]
@@ -32,6 +47,7 @@ final class EditorModel: ObservableObject {
     init() {
         let defaults = UserDefaults.standard
         enabled = defaults.object(forKey: "adjustmentsEnabled") as? Bool ?? true
+        hotkeyEnabled = defaults.object(forKey: "hotkeyEnabled") as? Bool ?? true
         interfaceMode = InterfaceMode(rawValue: defaults.string(forKey: "interfaceMode") ?? "") ?? .beginner
         placement = AppPlacement(rawValue: defaults.string(forKey: "appPlacement") ?? "") ?? .menuBar
         manualSettings = (defaults.data(forKey: "displaySettings").flatMap { try? JSONDecoder().decode([String: DisplaySettings].self, from: $0) }) ?? [:]
