@@ -22,6 +22,7 @@ for state in active deactivated; do
     fi
 
     icon_svg="$scratch_dir/$icon_name.svg"
+    stroke_width="$(sed -n 's/.*stroke-width="\([0-9.]*\)".*/\1/p' "$source_svg" | head -1)"
     {
         cat <<EOF
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
@@ -30,7 +31,7 @@ for state in active deactivated; do
     <stop offset="1" stop-color="$end_color"/>
   </linearGradient></defs>
   <rect x="64" y="64" width="896" height="896" rx="204" fill="url(#background)"/>
-  <g transform="translate(64 64) scale(14)" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(64 64) scale(14)" fill="none" stroke="white" stroke-width="$stroke_width" stroke-linecap="round" stroke-linejoin="round">
 EOF
         sed -n '/<path /p' "$source_svg"
         cat <<EOF
