@@ -332,7 +332,7 @@ private struct MenuBarControlsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollIndicators(.visible)
+            .scrollIndicators(.hidden)
         }
         .frame(maxHeight: .infinity)
     }

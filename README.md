@@ -2,17 +2,17 @@
 
 Glim is a lightweight native macOS display color editor. It changes each display’s Core Graphics RGB transfer curve, so adjustments happen below the app and do not require an overlay, screen capture, or background renderer.
 
-**Current preview:** `0.2.0` · macOS 14 or later · Apple Silicon build
+**Current preview:** `0.2.1` · macOS 14 or later · Apple Silicon build
 
 ## Download and install
 
-Download `Glim-0.2.0.zip` from the [0.2.0 release](https://github.com/Duncanyu/glim/releases/tag/v0.2.0) in the repository’s [Releases](https://github.com/Duncanyu/glim/releases) section. It requires an Apple Silicon Mac running macOS 14 or later.
+Download `Glim-0.2.1.zip` from the [0.2.1 release](https://github.com/Duncanyu/glim/releases/tag/v0.2.1) in the repository’s [Releases](https://github.com/Duncanyu/glim/releases) section. It requires an Apple Silicon Mac running macOS 14 or later.
 
 1. Unzip the download and move `Glim.app` to Applications.
 2. Open Glim. This preview is ad hoc signed and not notarized. If macOS blocks the first launch, open **System Settings → Privacy & Security → Open Anyway** and confirm. Only bypass this warning for a copy downloaded from this repository.
 3. Glim appears in the menu bar. Click its icon to open the control panel. Use **Settings** to switch between menu bar and Dock placement.
 
-The release includes `Glim-0.2.0.zip.sha256`. Place it beside the ZIP and run `shasum -a 256 -c Glim-0.2.0.zip.sha256` to verify the download.
+The release includes `Glim-0.2.1.zip.sha256`. Place it beside the ZIP and run `shasum -a 256 -c Glim-0.2.1.zip.sha256` to verify the download.
 
 ## What it does
 
