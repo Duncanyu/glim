@@ -26,6 +26,7 @@ struct EditorView: View {
                         settingsControls
                     } else if !model.displays.isEmpty {
                         presets
+                        visualReference
                         toneControls
                         tintControls
                         if model.interfaceMode == .professional {
@@ -121,6 +122,78 @@ struct EditorView: View {
             }
             .buttonStyle(.bordered)
         }
+    }
+
+    private var visualReference: some View {
+        let input: [CGGammaValue] = [0, 0.25, 0.5, 0.75, 1]
+        let output = GammaTable(red: input, green: input, blue: input)
+            .adjusted(with: model.settings)
+
+        return GroupBox(model.enabled ? "Color reference" : "Preview when enabled") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Tone levels")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ForEach(input.indices, id: \.self) { index in
+                        referenceSwatch(
+                            red: output.red[index], green: output.green[index], blue: output.blue[index],
+                            label: "\(Int(input[index] * 100))% input"
+                        )
+                    }
+                }
+                Text("50% input → R \(percent(output.red[2])) · G \(percent(output.green[2])) · B \(percent(output.blue[2]))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+
+                Text("Color channels")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    referenceSwatch(
+                        red: output.red[4], green: output.green[0], blue: output.blue[0],
+                        label: "Red"
+                    )
+                    referenceSwatch(
+                        red: output.red[0], green: output.green[4], blue: output.blue[0],
+                        label: "Green"
+                    )
+                    referenceSwatch(
+                        red: output.red[0], green: output.green[0], blue: output.blue[4],
+                        label: "Blue"
+                    )
+                }
+                Text(model.enabled
+                     ? "Illustrative preview based on a neutral curve; the display profile may differ."
+                     : "Adjustments are paused. This previews the saved look when enabled.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func referenceSwatch(red: CGGammaValue, green: CGGammaValue, blue: CGGammaValue, label: String) -> some View {
+        let output = "R \(percent(red)), G \(percent(green)), B \(percent(blue))"
+        return VStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color(red: Double(red), green: Double(green), blue: Double(blue)))
+                .frame(height: 28)
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.2), lineWidth: 1))
+                .accessibilityHidden(true)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .help("\(label): estimated output \(output)")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), estimated output \(output)")
+    }
+
+    private func percent(_ value: CGGammaValue) -> String {
+        "\(Int((Double(value) * 100).rounded()))%"
     }
 
     private var toneControls: some View {
@@ -305,6 +378,10 @@ struct EditorView: View {
         highLabel: String? = nil
     ) -> some View {
         let name = accessibleName ?? title
+        let precision = scale == 1 ? 2 : 0
+        let measure: (Double) -> String = { number in
+            "\((number * scale).formatted(.number.precision(.fractionLength(precision))))\(unit)"
+        }
         let clamped = Binding(
             get: { value.wrappedValue },
             set: { value.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
@@ -314,17 +391,23 @@ struct EditorView: View {
             set: { clamped.wrappedValue = $0 / scale }
         )
         return VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.subheadline.weight(.medium))
+            HStack {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                Text("Default \(measure(neutral))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 8) {
                 Slider(value: clamped, in: range, step: 0.01)
                     .controlSize(.large)
                     .accessibilityLabel(name)
-                    .accessibilityValue("\(displayed.wrappedValue.formatted(.number.precision(.fractionLength(scale == 1 ? 2 : 0)))) \(unit)")
-                    .accessibilityHint(hint ?? "Use arrow keys for fine adjustments.")
+                    .accessibilityValue(measure(clamped.wrappedValue))
+                    .accessibilityHint("\(hint ?? "Use arrow keys for fine adjustments.") Range \(measure(range.lowerBound)) to \(measure(range.upperBound)); default \(measure(neutral)).")
 
                 TextField(title, value: displayed,
-                          format: .number.precision(.fractionLength(scale == 1 ? 2 : 0)))
+                          format: .number.precision(.fractionLength(precision)))
                     .textFieldStyle(.roundedBorder)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 64)
@@ -344,17 +427,15 @@ struct EditorView: View {
                 .help("Reset \(name)")
                 .accessibilityLabel("Reset \(name)")
             }
-            if let lowLabel, let highLabel {
-                HStack {
-                    Text(lowLabel)
-                    Spacer()
-                    Text(highLabel)
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.trailing, 112)
-                .accessibilityHidden(true)
+            HStack {
+                Text("\(lowLabel ?? "Min") \(measure(range.lowerBound))")
+                Spacer()
+                Text("\(highLabel ?? "Max") \(measure(range.upperBound))")
             }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .padding(.trailing, 112)
+            .accessibilityHidden(true)
         }
         .padding(.vertical, 2)
     }

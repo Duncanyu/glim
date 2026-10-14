@@ -1,6 +1,6 @@
-# Color Editor
+# Glim
 
-A small native macOS display color editor. “Color Editor” is a temporary name; no custom icon or branding is included.
+A small native macOS display color editor.
 
 ## Build and run
 
@@ -9,12 +9,14 @@ Requires macOS 14 or newer and Xcode command-line tools.
 ```sh
 swift test
 ./scripts/build-app.sh
-open "dist/Color Editor.app"
+open "dist/Glim.app"
 ```
 
-The app starts in the menu bar. Settings can switch it to a Dock app and hide the menu bar item, or switch back. Closing the editor window leaves adjustments running; quitting restores the display curves that were in place when the app started. Reset controls are always available in the editor.
+The app starts in the menu bar. Click the Glim icon for a compact control panel, or open the full editor from there. Settings can switch it to a Dock app and hide the menu bar item, or switch back. Closing the editor window leaves adjustments running; quitting restores the display curves that were in place when the app started. Reset controls are always available in the editor.
 
-Press **Control–Option–Command–C** from any app to pause or resume adjustments. The shortcut can be turned off in Settings. Sliders support arrow-key steps, editable numeric values, and individual resets.
+Press **Control–Option–Command–C** from any app to pause or resume adjustments. The shortcut can be turned off in Settings. Sliders show their ranges and current measurements, support arrow-key steps and editable numeric values, and have individual resets. A color preview shows the selected look.
+
+The supplied icon sources are in `Resources/source/`. The packaged images are committed; regenerate them after SVG edits with `scripts/generate-icons.sh` (requires `rsvg-convert` and macOS `iconutil`). AppKit treats the menu bar images as templates, so their contrast follows the menu bar appearance.
 
 ## What the display backend can do
 

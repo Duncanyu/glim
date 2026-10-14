@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "ColorEditor",
+    name: "Glim",
     platforms: [.macOS(.v14)],
     products: [.executable(name: "ColorEditor", targets: ["ColorEditor"])],
     targets: [
