@@ -1,10 +1,27 @@
 # Glim
 
-A small native macOS display color editor.
+Glim is a lightweight native macOS display color editor. It changes each display’s Core Graphics RGB transfer curve, so adjustments happen below the app and do not require an overlay, screen capture, or background renderer.
 
-## Build and run
+**Current release:** `0.2.0` · macOS 14 or later · Apple Silicon build
 
-Requires macOS 14 or newer and Xcode command-line tools.
+## Download
+
+Download [`Glim-0.2.0.zip`](https://github.com/Duncanyu/gcalt/releases/download/v0.2.0/Glim-0.2.0.zip), unzip it, and move `Glim.app` to Applications. The build is ad hoc signed for development and evaluation; macOS may ask you to approve it the first time it opens.
+
+## What it does
+
+- Shows a compact control panel from the menu bar, with a full editor available when you need more room.
+- Supports beginner and professional modes.
+- Controls apparent brightness, contrast, gamma, warmth, green–magenta balance, tint, and independent RGB gain, gamma, and lift.
+- Shows live tone and color previews, numeric values, slider ranges, neutral values, and reset controls.
+- Supports multiple displays and stores settings per display when macOS exposes a stable display identity.
+- Uses the supplied Glim active and deactivated icons. Menu bar images are AppKit templates, so macOS adapts their foreground contrast to the current menu bar appearance.
+- Offers Dock or menu bar placement. In menu bar mode, click the Glim icon to open the popover.
+- Provides the global toggle shortcut **Control–Option–Command–C**, configurable in Settings.
+
+## Build from source
+
+Requires macOS 14 or later, Xcode Command Line Tools, `rsvg-convert`, and `iconutil`.
 
 ```sh
 swift test
@@ -12,22 +29,32 @@ swift test
 open "dist/Glim.app"
 ```
 
-The app starts in the menu bar. Click the Glim icon for a compact control panel, or open the full editor from there. Settings can switch it to a Dock app and hide the menu bar item, or switch back. Closing the editor window leaves adjustments running; quitting restores the display curves that were in place when the app started. Reset controls are always available in the editor.
+To regenerate the supplied icon assets after editing their SVG sources:
 
-Press **Control–Option–Command–C** from any app to pause or resume adjustments. The shortcut can be turned off in Settings. Sliders show their ranges and current measurements, support arrow-key steps and editable numeric values, and have individual resets. A color preview shows the selected look.
+```sh
+./scripts/generate-icons.sh
+```
 
-The supplied icon sources are in `Resources/source/`. The packaged images are committed; regenerate them after SVG edits with `scripts/generate-icons.sh` (requires `rsvg-convert` and macOS `iconutil`). AppKit treats the menu bar images as templates, so their contrast follows the menu bar appearance.
+The source icons are in [`Resources/source`](Resources/source). The packaged application is written to `dist/Glim.app`.
 
-## What the display backend can do
+## How the display backend works
 
-The editor writes each display's public Core Graphics RGB gamma table. It saves the existing table, applies changes only when a control changes, and restores the saved table when adjustments are paused or the app quits. It uses no overlay, screen capture, polling, third-party library, or background renderer. A future automatic adjustment source can feed `submitAutomaticAdjustment` without changing the display backend.
+Glim saves the existing transfer table for each display, applies changes only when a control changes, and restores the saved table when adjustments are paused or the app quits. If another utility changes a display while Glim is running, Glim treats that newer table as the current baseline instead of restoring over it.
 
-If another display utility or macOS changes a gamma table while this app is running, the editor detects the change at its next adjustment. It then treats that newer table as the baseline, and it does not restore over a later change it no longer owns.
+The automatic-adjustment bridge is present in the model but has no content analyzer yet. It can receive future adjustments without changing the display backend or the manual controls.
 
-These are three independent one-dimensional channel curves. They provide apparent dimming, tone, white balance, tint, and per-channel gain/gamma/lift. They **cannot** provide arbitrary hue rotation, saturation, selective colors, or a 3D LUT. Dimming does not lower panel backlight power. Some recent Macs accept gamma API calls without visibly changing the display; the app cannot detect that from the API response. Verify the result by eye on each display. Because Apple does not guarantee capture behavior for every path, verify screenshots and recordings on the target Mac before relying on capture invisibility.
+## Limits
 
-A small output floor keeps the editor visible when several controls are minimized at once.
+The backend uses three independent one-dimensional RGB curves. It supports tone, apparent dimming, white balance, tint, and per-channel gain, gamma, and lift. It does not provide arbitrary hue rotation, saturation editing, selective colors, or 3D LUTs. Brightness is apparent brightness and does not reduce panel backlight power.
 
-The app is currently unsigned for distribution (the build script applies local ad-hoc signing). A release build needs a permanent bundle identifier, developer signature, and hardware testing across SDR, HDR, built-in, and external displays.
+Some Macs accept gamma API calls without visibly changing a display. Verify the result on each target Mac, especially with HDR, external displays, and display utilities that also manage transfer curves. Apple does not guarantee capture behavior for every display path, so verify screenshots and recordings before relying on capture invisibility.
 
-Two identical external monitors that report no serial number can be controlled separately during a session, but their individual settings are not saved across launches because macOS does not provide a reliable identity for that case through the APIs used here.
+Two identical external displays with no serial number can be controlled separately during a session, but their individual settings cannot be reliably persisted across launches.
+
+## Project status
+
+Glim is pre-1.0 and under active development. The next releases may change the control layout, automatic mode, packaging, and display measurement features while the project is being refined.
+
+## License
+
+No license has been selected yet. All rights are reserved by default.
