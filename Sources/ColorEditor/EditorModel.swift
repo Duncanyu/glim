@@ -21,6 +21,12 @@ final class EditorModel: ObservableObject {
             onHotkeyPreferenceChange?(hotkeyEnabled)
         }
     }
+    @Published var automaticUpdates: Bool {
+        didSet {
+            UserDefaults.standard.set(automaticUpdates, forKey: "automaticUpdates")
+            onAutomaticUpdatesChange?(automaticUpdates)
+        }
+    }
     @Published var interfaceMode: InterfaceMode {
         didSet { UserDefaults.standard.set(interfaceMode.rawValue, forKey: "interfaceMode") }
     }
@@ -37,6 +43,7 @@ final class EditorModel: ObservableObject {
     var onEnabledChange: ((Bool) -> Void)?
     var onPlacementChange: ((AppPlacement) -> Void)?
     var onHotkeyPreferenceChange: ((Bool) -> Void)?
+    var onAutomaticUpdatesChange: ((Bool) -> Void)?
 
     private let controller = DisplayController()
     private var manualSettings: [String: DisplaySettings]
@@ -48,6 +55,7 @@ final class EditorModel: ObservableObject {
         let defaults = UserDefaults.standard
         enabled = defaults.object(forKey: "adjustmentsEnabled") as? Bool ?? true
         hotkeyEnabled = defaults.object(forKey: "hotkeyEnabled") as? Bool ?? true
+        automaticUpdates = defaults.object(forKey: "automaticUpdates") as? Bool ?? true
         interfaceMode = InterfaceMode(rawValue: defaults.string(forKey: "interfaceMode") ?? "") ?? .beginner
         placement = AppPlacement(rawValue: defaults.string(forKey: "appPlacement") ?? "") ?? .menuBar
         manualSettings = (defaults.data(forKey: "displaySettings").flatMap { try? JSONDecoder().decode([String: DisplaySettings].self, from: $0) }) ?? [:]

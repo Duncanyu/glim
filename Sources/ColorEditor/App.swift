@@ -20,11 +20,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private var hotkeyController: HotkeyController?
+    private let updater = GlimUpdater()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.onEnabledChange = { [weak self] enabled in self?.updateStatusItem(enabled: enabled) }
         model.onPlacementChange = { [weak self] placement in self?.updatePlacement(placement) }
         model.onHotkeyPreferenceChange = { [weak self] enabled in self?.updateHotkey(enabled: enabled) }
+        model.onAutomaticUpdatesChange = { [weak self] enabled in self?.updater.setEnabled(enabled) }
         hotkeyController = HotkeyController { [weak self] in self?.model.enabled.toggle() }
 
         installAppMenu()
@@ -33,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updatePlacement(model.placement)
         updateStatusItem(enabled: model.enabled)
         updateHotkey(enabled: model.hotkeyEnabled)
+        updater.setEnabled(model.automaticUpdates)
         if model.placement == .dock { openEditor() }
     }
 
@@ -48,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkeyController?.stop()
+        updater.stop()
         model.restoreDisplays()
     }
 
@@ -207,6 +211,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.keyEquivalentModifierMask = modifiers
             editMenu.addItem(item)
         }
+        let windowItem = NSMenuItem(title: "Window", action: nil, keyEquivalent: "")
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowItem.submenu = windowMenu
+        mainMenu.addItem(windowItem)
+        NSApp.windowsMenu = windowMenu
         NSApp.mainMenu = mainMenu
     }
 

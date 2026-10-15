@@ -335,6 +335,15 @@ struct EditorView: View {
                 }
             }
 
+            GroupBox("Updates") {
+                VStack(alignment: .leading, spacing: 5) {
+                    Toggle("Automatically update from GitHub", isOn: $model.automaticUpdates)
+                    Text("Checks for new releases once a day and asks before installing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             GroupBox("Displays") {
                 HStack {
                     Button("Refresh displays") { model.refreshDisplays() }
