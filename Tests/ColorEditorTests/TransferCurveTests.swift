@@ -23,4 +23,29 @@ final class TransferCurveTests: XCTestCase {
         external.red[2] += 0.01
         XCTAssertFalse(neutral.approximatelyEquals(external))
     }
+
+    func testGammaBoostRevealsNearBlackWithoutMovingWhite() {
+        let baseline: [Float] = [0, 0.01, 0.04, 0.16, 0.36, 0.64, 1]
+        var settings = DisplaySettings()
+        settings.gamma = 2
+
+        let adjusted = TransferCurve.adjust(baseline, settings: settings, channel: .red)
+
+        XCTAssertEqual(adjusted.first!, 0, accuracy: 0.00001)
+        XCTAssertGreaterThan(adjusted[1], baseline[1] * 5)
+        XCTAssertEqual(adjusted.last!, 1, accuracy: 0.00001)
+        XCTAssertTrue(zip(adjusted, adjusted.dropFirst()).allSatisfy(<))
+    }
+
+    func testContrastDoesNotCrushNonzeroShadows() {
+        let baseline = (0...256).map { Float($0) / 256 }
+        var settings = DisplaySettings()
+        settings.gamma = 2
+        settings.contrast = 1.5
+
+        let adjusted = TransferCurve.adjust(baseline, settings: settings, channel: .green)
+
+        XCTAssertGreaterThan(adjusted[1], 0)
+        XCTAssertEqual(adjusted.last!, 1, accuracy: 0.00001)
+    }
 }

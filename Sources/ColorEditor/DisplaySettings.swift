@@ -106,18 +106,26 @@ enum TransferCurve {
         // Preserve enough output to keep the reset controls visible.
         let factor = max(0.08, gain * temperatureFactor * tintFactor * colorFactor * settings.brightness)
         let last = Double(baseline.count - 1)
+        let gammaExponent = 1 / max(0.01, settings.gamma * channelGamma)
 
         return baseline.indices.map { index in
             let input = Double(index) / last
-            let gammaInput = pow(input, 1 / max(0.01, settings.gamma))
-            let curvedInput = min(1, max(0, (gammaInput - 0.5) * settings.contrast + 0.5))
+            let gammaInput = pow(input, gammaExponent)
+            let curvedInput = contrastAdjusted(gammaInput, amount: settings.contrast)
             let position = curvedInput * last
             let lower = Int(position)
             let upper = min(lower + 1, baseline.count - 1)
             let fraction = position - Double(lower)
             let base = Double(baseline[lower]) * (1 - fraction) + Double(baseline[upper]) * fraction
-            let value = pow(max(0, base + lift), 1 / max(0.01, channelGamma)) * factor
+            let value = max(0, base + lift) * factor
             return CGGammaValue(min(1, max(0, value)))
         }
+    }
+
+    private static func contrastAdjusted(_ input: Double, amount: Double) -> Double {
+        if input < 0.5 {
+            return 0.5 * pow(input * 2, amount)
+        }
+        return 1 - 0.5 * pow((1 - input) * 2, amount)
     }
 }

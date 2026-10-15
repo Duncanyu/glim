@@ -202,10 +202,10 @@ struct EditorView: View {
                 slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1,
                        hint: "Apparent brightness. Does not change the display backlight.")
                 slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
-                if model.interfaceMode == .professional {
-                    slider("Gamma", value: $model.settings.gamma, range: 0.5...2, neutral: 1,
-                           scale: 1, unit: "×")
-                }
+                slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
+                       scale: 1, unit: "×", accessibleName: "Gamma shadow boost",
+                       hint: "Raise gamma to reveal near-black detail while preserving white.",
+                       lowLabel: "Darker", highLabel: "Brighter")
             }
         }
     }

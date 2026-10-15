@@ -298,12 +298,16 @@ private struct MenuBarControlsView: View {
                     if model.interfaceMode == .beginner {
                         slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1)
                         slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
+                        slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
+                               name: "Gamma shadow boost", scale: 1, unit: "×")
                         slider("Warmth", value: $model.settings.warmth, range: -1...1, neutral: 0, color: .orange)
                         ColorPicker("Tint color", selection: tintColor, supportsOpacity: false)
                         slider("Tint strength", value: $model.settings.tintStrength, range: 0...1, neutral: 0, color: .pink)
                     } else {
                         slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1)
                         slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
+                        slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
+                               name: "Gamma shadow boost", scale: 1, unit: "×")
                         Picker("Tone region", selection: $region) {
                             Text("Shadows").tag(0)
                             Text("Midtones").tag(1)
