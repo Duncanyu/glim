@@ -2,11 +2,11 @@
 
 Glim is a native macOS display color editor for adjusting the look of each connected display with a lightweight menu bar control panel.
 
-[Download the Apple Silicon preview](https://github.com/Duncanyu/glim/releases/tag/v0.2.2) · [Install](#download-and-install) · [Features](#features) · [Use](#use) · [Build](#build-from-source)
+[Download the Apple Silicon preview](https://github.com/Duncanyu/glim/releases/tag/v0.2.3) · [Install](#download-and-install) · [Features](#features) · [Use](#use) · [Build](#build-from-source)
 
 ## Download and install
 
-Download `Glim-0.2.2.zip` from the [0.2.2 preview release](https://github.com/Duncanyu/glim/releases/tag/v0.2.2). It requires an Apple Silicon Mac running macOS 14 or later.
+Download `Glim-0.2.3.zip` from the [0.2.3 preview release](https://github.com/Duncanyu/glim/releases/tag/v0.2.3). It requires an Apple Silicon Mac running macOS 14 or later.
 
 1. Unzip the download and move **Glim.app** into **Applications**.
 2. Open Glim from Applications. This preview is ad hoc signed and **not notarized**. macOS may block the first launch with a security warning. Open it once, then go to **System Settings → Privacy & Security → Open Anyway** and confirm. Only bypass this warning for a copy downloaded from this repository.
@@ -15,13 +15,13 @@ Download `Glim-0.2.2.zip` from the [0.2.2 preview release](https://github.com/Du
 The release includes a SHA-256 checksum file. Place it beside the ZIP and run:
 
 ```sh
-shasum -a 256 -c Glim-0.2.2.zip.sha256
+shasum -a 256 -c Glim-0.2.3.zip.sha256
 ```
 
 ## Use
 
 - Press **Control–Option–Command–C** from any app to pause or resume adjustments. Change or disable the shortcut in Settings.
-- Choose **Beginner** for brightness, contrast, warmth, and tint controls.
+- Choose **Beginner** for brightness, contrast, gamma, warmth, and tint controls.
 - Choose **Professional** for gamma and independent RGB controls.
 - Edit the number beside a slider for a precise value. Each slider includes a reset control and range labels.
 - Choose a display from the display menu before editing it.
