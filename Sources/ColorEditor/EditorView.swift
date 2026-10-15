@@ -2,112 +2,139 @@ import AppKit
 import CoreGraphics
 import SwiftUI
 
+private struct GlimGroupBoxStyle: GroupBoxStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            configuration.label.font(.headline)
+            configuration.content
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 15))
+        .overlay {
+            RoundedRectangle(cornerRadius: 15)
+                .strokeBorder(Color.primary.opacity(0.06))
+        }
+    }
+}
+
 @MainActor
 struct EditorView: View {
     @ObservedObject var model: EditorModel
+    @State private var page = 0
+
+    private let surface = Color.black.opacity(0.045)
+    private let accent = Color(red: 0.08, green: 0.48, blue: 0.98)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            header
-            displayPicker
-
-            if !model.showsSettings {
-                Picker("Control mode", selection: $model.interfaceMode) {
-                    Text("Beginner").tag(InterfaceMode.beginner)
-                    Text("Professional").tag(InterfaceMode.professional)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if model.showsSettings {
-                        settingsControls
-                    } else if !model.displays.isEmpty {
-                        presets
-                        visualReference
-                        toneControls
-                        tintControls
-                        if model.interfaceMode == .professional {
-                            channelControls
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .scrollIndicators(.visible)
-
-            footer
+        TabView(selection: $page) {
+            ScrollView { dashboard }
+                .tabItem { Label("Dashboard", systemImage: "square.grid.2x2") }
+                .tag(0)
+            ScrollView { advanced }
+                .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
+                .tag(1)
+            ScrollView { general }
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(2)
         }
         .padding(20)
-        .frame(minWidth: 470, idealWidth: 520, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 760, minHeight: 580)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .tint(accent)
+        .groupBoxStyle(GlimGroupBoxStyle())
+        .preferredColorScheme(.light)
+        .onAppear { if model.showsSettings { page = 2 } }
+        .onChange(of: model.showsSettings) { _, settings in if settings { page = 2 } }
     }
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "display")
-                .font(.title2)
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.showsSettings ? "Settings" : "Color controls")
-                    .font(.headline)
-                Text(model.showsSettings ? "Preferences and display tools" : "Adjust the selected display")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private var dashboard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("Glim color").font(.largeTitle.bold())
+                Spacer()
+                Toggle("On", isOn: $model.enabled)
+                    .accessibilityLabel("Adjustments enabled")
             }
-
-            Spacer()
-
-            Button {
-                model.showsSettings.toggle()
-            } label: {
-                Label(model.showsSettings ? "Controls" : "Settings",
-                      systemImage: model.showsSettings ? "slider.horizontal.3" : "gearshape")
+            displayPicker
+                .padding(14)
+                .background(surface, in: RoundedRectangle(cornerRadius: 14))
+            if !model.displays.isEmpty {
+                presets
+                HStack(alignment: .top, spacing: 14) {
+                    toneControls
+                    tintControls
+                }
+                visualReference
+                footer
             }
-            .help(model.showsSettings ? "Back to controls" : "Settings")
-
-            Toggle("On", isOn: $model.enabled)
-                .toggleStyle(.switch)
-                .accessibilityLabel("Adjustments enabled")
-                .help(model.enabled ? "Pause display adjustments" : "Resume display adjustments")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var advanced: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Advanced color").font(.largeTitle.bold())
+            displayPicker
+                .padding(14)
+                .background(surface, in: RoundedRectangle(cornerRadius: 14))
+            if !model.displays.isEmpty {
+                HStack(alignment: .top, spacing: 14) {
+                    channelControls
+                    VStack(spacing: 14) {
+                        GroupBox("Color balance") {
+                            slider("Green–magenta balance", value: $model.settings.tint,
+                                   range: -1...1, neutral: 0, lowLabel: "Green", highLabel: "Magenta")
+                        }
+                        visualReference
+                    }
+                }
+                footer
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var general: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("General").font(.largeTitle.bold())
+            settingsControls
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var displayPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if model.displays.isEmpty {
-                HStack {
-                    Label("No displays available", systemImage: "display.trianglebadge.exclamationmark")
-                        .foregroundStyle(.secondary)
-                    Spacer()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 12) {
+                Label("Display", systemImage: "display")
+                    .font(.headline)
+                Spacer()
+                if model.displays.isEmpty {
+                    Text("No displays available").foregroundStyle(.secondary)
                     Button("Refresh") { model.refreshDisplays() }
-                }
-            } else {
-                Picker("Display", selection: Binding(
-                    get: { model.selectedDisplayID },
-                    set: { model.selectDisplay($0) }
-                )) {
-                    ForEach(model.displays) { display in
-                        Text(display.isMain ? "\(display.name) · Main" : display.name)
-                            .tag(display.id)
+                } else {
+                    Picker("Display", selection: Binding(
+                        get: { model.selectedDisplayID },
+                        set: { model.selectDisplay($0) }
+                    )) {
+                        ForEach(model.displays) { display in
+                            Text(display.isMain ? "\(display.name) · Main" : display.name)
+                                .tag(display.id)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .pickerStyle(.menu)
             }
-
             if let error = model.errorMessage, !error.isEmpty {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 Label(model.enabled ? "Adjustments on" : "Adjustments paused",
                       systemImage: model.enabled ? "checkmark.circle.fill" : "pause.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(model.enabled ? Color.green : Color.secondary)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -215,11 +242,6 @@ struct EditorView: View {
             VStack(alignment: .leading, spacing: 12) {
                 slider("Warmth", value: $model.settings.warmth, range: -1...1, neutral: 0,
                        lowLabel: "Cooler", highLabel: "Warmer")
-                if model.interfaceMode == .professional {
-                    slider("Green–magenta balance", value: $model.settings.tint,
-                           range: -1...1, neutral: 0, lowLabel: "Green", highLabel: "Magenta")
-                }
-
                 Divider()
                 Text("Tint color")
                     .font(.subheadline.weight(.medium))
@@ -292,6 +314,14 @@ struct EditorView: View {
                 .pickerStyle(.segmented)
             }
 
+            GroupBox("Menu bar controls") {
+                Picker("Control mode", selection: $model.interfaceMode) {
+                    Text("Beginner").tag(InterfaceMode.beginner)
+                    Text("Professional").tag(InterfaceMode.professional)
+                }
+                .pickerStyle(.segmented)
+            }
+
             GroupBox("Keyboard shortcut") {
                 VStack(alignment: .leading, spacing: 8) {
                     Toggle("Toggle adjustments with ⌃⌥⌘C", isOn: $model.hotkeyEnabled)
@@ -317,10 +347,8 @@ struct EditorView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if !model.showsSettings {
-                Button("Reset this display") { model.resetSelected() }
-                    .disabled(model.displays.isEmpty)
-            }
+            Button("Reset this display") { model.resetSelected() }
+                .disabled(model.displays.isEmpty)
             Text("Brightness is an apparent adjustment, not the backlight. Display LUT support varies by Mac and display.")
                 .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(.secondary)

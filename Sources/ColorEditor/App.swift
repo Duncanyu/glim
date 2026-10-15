@@ -62,13 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         popover?.close()
         if window == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 520, height: 680),
+                contentRect: NSRect(x: 0, y: 0, width: 760, height: 580),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
                 defer: false
             )
             window.title = "Glim"
-            window.contentMinSize = NSSize(width: 470, height: 560)
+            window.contentMinSize = NSSize(width: 760, height: 580)
             window.contentView = NSHostingView(rootView: EditorView(model: model))
             window.isReleasedWhenClosed = false
             window.center()
@@ -157,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if popover == nil {
             let popover = NSPopover()
             popover.behavior = .transient
-            popover.contentSize = NSSize(width: 340, height: 530)
+            popover.contentSize = NSSize(width: 400, height: 520)
             popover.contentViewController = NSHostingController(rootView: MenuBarControlsView(
                 model: model,
                 openFullEditor: { [weak self] in self?.openEditor() },
@@ -226,10 +226,15 @@ private struct MenuBarControlsView: View {
     @State private var region = 2
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(model.showsSettings ? "Glim Settings" : "Glim controls")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(model.showsSettings ? "Glim settings" : "Glim controls")
+                        .font(.system(size: 17, weight: .bold))
+                    Text(model.enabled ? "Adjustments on" : "Adjustments paused")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button {
                     model.showsSettings.toggle()
@@ -244,39 +249,44 @@ private struct MenuBarControlsView: View {
                     .accessibilityLabel("Adjustments enabled")
             }
 
-            if model.showsSettings {
-                settingsPanel
-            } else {
-                controlsPanel
+            ScrollView(showsIndicators: false) {
+                if model.showsSettings { settingsPanel }
+                else { controlsPanel }
             }
-
             Divider()
             HStack {
-                Button("Full editor") { openFullEditor() }
+                Button("Full settings") { openFullEditor() }
                 Spacer()
                 Button("Quit") { quit() }
             }
         }
-        .padding(14)
-        .frame(width: 340, height: 530)
+        .padding(16)
+        .frame(width: 400, height: 520)
+        .tint(.blue)
     }
 
     private var controlsPanel: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            if model.displays.isEmpty {
-                Label("No displays available", systemImage: "display.trianglebadge.exclamationmark")
-                    .foregroundStyle(.secondary)
-            } else {
-                Picker("Display", selection: Binding(
-                    get: { model.selectedDisplayID },
-                    set: { model.selectDisplay($0) }
-                )) {
-                    ForEach(model.displays) { display in
-                        Text(display.isMain ? "\(display.name) · Main" : display.name).tag(display.id)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text("Display").font(.callout.weight(.medium))
+                Spacer(minLength: 0)
+                if model.displays.isEmpty {
+                    Text("No displays available").foregroundStyle(.secondary)
+                } else {
+                    Picker("Display", selection: Binding(
+                        get: { model.selectedDisplayID },
+                        set: { model.selectDisplay($0) }
+                    )) {
+                        ForEach(model.displays) { display in
+                            Text(display.isMain ? "\(display.name) · Main" : display.name).tag(display.id)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
-                .pickerStyle(.menu)
             }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
 
             if let error = model.errorMessage {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
@@ -285,29 +295,42 @@ private struct MenuBarControlsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Picker("Mode", selection: $model.interfaceMode) {
-                Text("Beginner").tag(InterfaceMode.beginner)
-                Text("Professional").tag(InterfaceMode.professional)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Mode", selection: $model.interfaceMode) {
+                    Text("Beginner").tag(InterfaceMode.beginner)
+                    Text("Professional").tag(InterfaceMode.professional)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tone and color").font(.headline)
                     tonePreview
-                    if model.interfaceMode == .beginner {
-                        slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1)
-                        slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
-                        slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
-                               name: "Gamma shadow boost", scale: 1, unit: "×")
+                }
+                .padding(10)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Light and tone").font(.headline)
+                    slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1)
+                    slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
+                    slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
+                           name: "Gamma shadow boost", scale: 1, unit: "×")
+                }
+                .padding(10)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+
+                if model.interfaceMode == .beginner {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Color").font(.headline)
                         slider("Warmth", value: $model.settings.warmth, range: -1...1, neutral: 0, color: .orange)
                         ColorPicker("Tint color", selection: tintColor, supportsOpacity: false)
                         slider("Tint strength", value: $model.settings.tintStrength, range: 0...1, neutral: 0, color: .pink)
-                    } else {
-                        slider("Brightness", value: $model.settings.brightness, range: 0.1...1, neutral: 1)
-                        slider("Contrast", value: $model.settings.contrast, range: 0.5...1.5, neutral: 1)
-                        slider("Gamma", value: $model.settings.gamma, range: 0.5...3, neutral: 1,
-                               name: "Gamma shadow boost", scale: 1, unit: "×")
+                    }
+                    .padding(10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("RGB channels").font(.headline)
                         Picker("Tone region", selection: $region) {
                             Text("Shadows").tag(0)
                             Text("Midtones").tag(1)
@@ -331,37 +354,50 @@ private struct MenuBarControlsView: View {
                             slider("Blue", value: $model.settings.blueGain, range: 0.1...1.5, neutral: 1, color: .blue, name: "Blue highlight gain")
                         }
                     }
-                    Button("Reset this display") { model.resetSelected() }
-                        .disabled(model.displays.isEmpty)
+                    .padding(10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Reset this display") { model.resetSelected() }
+                    .disabled(model.displays.isEmpty)
             }
-            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxHeight: .infinity)
     }
 
     private var settingsPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Picker("Show in", selection: $model.placement) {
-                Text("Dock").tag(AppPlacement.dock)
-                Text("Menu bar").tag(AppPlacement.menuBar)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("App location").font(.headline)
+                Picker("Show in", selection: $model.placement) {
+                    Text("Dock").tag(AppPlacement.dock)
+                    Text("Menu bar").tag(AppPlacement.menuBar)
+                }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
 
-            Toggle("Toggle adjustments with ⌃⌥⌘C", isOn: $model.hotkeyEnabled)
-            if let status = model.hotkeyStatus {
-                Text(status).font(.caption).foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Keyboard shortcut").font(.headline)
+                Toggle("Toggle adjustments with ⌃⌥⌘C", isOn: $model.hotkeyEnabled)
+                if let status = model.hotkeyStatus {
+                    Text(status).font(.caption).foregroundStyle(.red)
+                }
             }
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
 
-            HStack {
-                Button("Refresh displays") { model.refreshDisplays() }
-                Spacer()
-                Button("Reset all") { model.resetAll() }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Displays").font(.headline)
+                HStack {
+                    Button("Refresh displays") { model.refreshDisplays() }
+                    Spacer()
+                    Button("Reset all") { model.resetAll() }
+                }
             }
-            Spacer()
+            .padding(10)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
-        .frame(maxHeight: .infinity)
     }
 
     private var tonePreview: some View {
